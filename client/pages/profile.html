@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Profil — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside id="sidebar" class="hidden md:flex md:flex-col w-64 glass-card m-4 mr-0"></aside>
+    <div class="flex-1 flex flex-col">
+      <header id="topbar" class="glass-card m-4 mb-0"></header>
+      <main class="p-4 md:p-6 flex-1 max-w-2xl">
+        <h1 class="text-xl font-bold mb-4">Profil</h1>
+
+        <div class="glass-card p-5 mb-4">
+          <h2 class="font-semibold mb-3">Informasi Akun</h2>
+          <form id="profileForm" class="space-y-3">
+            <div><label class="text-sm font-medium">Foto Profil</label>
+              <input type="file" id="photo" accept="image/*" class="input-field mt-1" /></div>
+            <div><label class="text-sm font-medium">Nama Lengkap</label>
+              <input type="text" id="fullName" class="input-field mt-1" required /></div>
+            <div><label class="text-sm font-medium">Email</label>
+              <input type="email" id="email" class="input-field mt-1" required /></div>
+            <button type="submit" class="btn-primary">Simpan Perubahan</button>
+          </form>
+        </div>
+
+        <div class="glass-card p-5 mb-4">
+          <h2 class="font-semibold mb-3">Ubah Password</h2>
+          <form id="passwordForm" class="space-y-3">
+            <input type="password" id="currentPassword" class="input-field" placeholder="Password saat ini" required />
+            <input type="password" id="newPassword" class="input-field" placeholder="Password baru (min 8 karakter)" required minlength="8" />
+            <button type="submit" class="btn-primary">Ubah Password</button>
+          </form>
+        </div>
+
+        <div class="glass-card p-5">
+          <h2 class="font-semibold mb-3">Preferensi</h2>
+          <form id="settingsForm" class="space-y-3">
+            <label class="flex items-center justify-between">
+              <span>Dark Mode</span>
+              <input type="checkbox" id="darkModeSetting" />
+            </label>
+            <div>
+              <label class="text-sm font-medium">Bahasa</label>
+              <select id="language" class="input-field mt-1">
+                <option value="id">Indonesia</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-primary">Simpan Preferensi</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script src="../public/js/layout.js"></script>
+  <script>
+    renderLayout('profile');
+    const user = Auth.getUser();
+    document.getElementById('fullName').value = user.fullName || '';
+    document.getElementById('email').value = user.email || '';
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('fullName', document.getElementById('fullName').value);
+      formData.append('email', document.getElementById('email').value);
+      const photoFile = document.getElementById('photo').files[0];
+      if (photoFile) formData.append('photo', photoFile);
+      try {
+        await apiRequest('/profile', { method: 'PUT', body: formData, isForm: true });
+        Swal.fire({ icon: 'success', title: 'Profil diperbarui', confirmButtonColor: '#22C55E' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+
+    document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      try {
+        await apiRequest('/profile/password', { method: 'PUT', body: { currentPassword, newPassword } });
+        Swal.fire({ icon: 'success', title: 'Password diubah', confirmButtonColor: '#22C55E' });
+        e.target.reset();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const darkMode = document.getElementById('darkModeSetting').checked;
+      const language = document.getElementById('language').value;
+      try {
+        await apiRequest('/profile/settings', { method: 'PUT', body: { darkMode, language, reminderEnabled: true } });
+        localStorage.setItem('darkMode', darkMode);
+        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+        Swal.fire({ icon: 'success', title: 'Preferensi disimpan', confirmButtonColor: '#22C55E' });
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+  </script>
+</body>
+</html>

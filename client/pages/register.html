@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daftar — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen px-4 py-8">
+  <div class="glass-card w-full max-w-md p-8 fade-in">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#22C55E,#16A34A)">
+        <i class="fa-solid fa-piggy-bank text-white text-2xl"></i>
+      </div>
+      <h1 class="text-2xl font-bold mt-3">Buat Akun MySavings</h1>
+    </div>
+
+    <form id="registerForm" class="space-y-4">
+      <div>
+        <label class="text-sm font-medium">Nama Lengkap</label>
+        <input type="text" id="fullName" class="input-field mt-1" required />
+      </div>
+      <div>
+        <label class="text-sm font-medium">Username</label>
+        <input type="text" id="username" class="input-field mt-1" required minlength="3" pattern="[a-zA-Z0-9_]+"
+          title="Hanya huruf, angka, dan underscore" />
+      </div>
+      <div>
+        <label class="text-sm font-medium">Email</label>
+        <input type="email" id="email" class="input-field mt-1" required />
+      </div>
+      <div>
+        <label class="text-sm font-medium">Password</label>
+        <input type="password" id="password" class="input-field mt-1" required minlength="8" />
+        <p class="text-xs mt-1" style="color:var(--text-muted)">Minimal 8 karakter, mengandung angka</p>
+      </div>
+      <button type="submit" class="btn-primary w-full">Daftar</button>
+    </form>
+
+    <p class="text-center text-sm mt-6" style="color:var(--text-muted)">
+      Sudah punya akun? <a href="login.html" class="text-green-600 font-semibold">Masuk</a>
+    </p>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fullName = document.getElementById('fullName').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        await apiRequest('/auth/register', { method: 'POST', body: { fullName, username, email, password } });
+        await Swal.fire({ icon: 'success', title: 'Registrasi berhasil', text: 'Silakan login', confirmButtonColor: '#22C55E' });
+        window.location.href = 'login.html';
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Registrasi gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+  </script>
+</body>
+</html>

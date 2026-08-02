@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pemasukan — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside id="sidebar" class="hidden md:flex md:flex-col w-64 glass-card m-4 mr-0"></aside>
+    <div class="flex-1 flex flex-col">
+      <header id="topbar" class="glass-card m-4 mb-0"></header>
+      <main class="p-4 md:p-6 flex-1">
+        <div class="flex items-center justify-between mb-4">
+          <h1 class="text-xl font-bold">Pemasukan</h1>
+          <button id="openAddModal" class="btn-primary"><i class="fa-solid fa-plus mr-1"></i> Tambah</button>
+        </div>
+
+        <div class="glass-card p-4 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left" style="color:var(--text-muted)">
+                <th class="py-2">Tanggal</th><th>Kategori</th><th>Keterangan</th><th class="text-right">Nominal</th><th class="text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="incomeTableBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Tambah/Edit -->
+  <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center px-4">
+    <div class="glass-card p-6 w-full max-w-md">
+      <h2 id="modalTitle" class="font-bold text-lg mb-4">Tambah Pemasukan</h2>
+      <form id="incomeForm" class="space-y-3">
+        <input type="hidden" id="incomeId" />
+        <div>
+          <label class="text-sm font-medium">Tanggal</label>
+          <input type="date" id="transactionDate" class="input-field mt-1" required />
+        </div>
+        <div>
+          <label class="text-sm font-medium">Nominal</label>
+          <input type="number" id="amount" min="1" step="1" class="input-field mt-1" required />
+        </div>
+        <div>
+          <label class="text-sm font-medium">Kategori</label>
+          <select id="category" class="input-field mt-1" required>
+            <option>Gaji</option><option>Bonus</option><option>Freelance</option>
+            <option>Bisnis</option><option>Hadiah</option><option>Lainnya</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-medium">Keterangan</label>
+          <textarea id="description" class="input-field mt-1" rows="2"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="cancelModal" class="w-1/2 py-2 rounded-xl border">Batal</button>
+          <button type="submit" class="btn-primary w-1/2">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script src="../public/js/layout.js"></script>
+  <script>
+    renderLayout('income');
+    const modal = document.getElementById('modal');
+    const form = document.getElementById('incomeForm');
+
+    function openModal(edit = null) {
+      form.reset();
+      document.getElementById('incomeId').value = edit?.id || '';
+      document.getElementById('modalTitle').textContent = edit ? 'Edit Pemasukan' : 'Tambah Pemasukan';
+      if (edit) {
+        document.getElementById('transactionDate').value = edit.transaction_date.slice(0,10);
+        document.getElementById('amount').value = edit.amount;
+        document.getElementById('category').value = edit.category;
+        document.getElementById('description').value = edit.description || '';
+      }
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+
+    document.getElementById('openAddModal').onclick = () => openModal();
+    document.getElementById('cancelModal').onclick = closeModal;
+
+    async function loadIncome() {
+      const res = await apiRequest('/income');
+      const tbody = document.getElementById('incomeTableBody');
+      tbody.innerHTML = res.data.map(row => `
+        <tr class="border-t" style="border-color:var(--border-glass)">
+          <td class="py-2">${new Date(row.transaction_date).toLocaleDateString('id-ID')}</td>
+          <td>${row.category}</td>
+          <td>${row.description || '-'}</td>
+          <td class="text-right text-green-600 font-medium">${formatRupiah(row.amount)}</td>
+          <td class="text-right">
+            <button onclick='editRow(${JSON.stringify(row)})' class="text-blue-500 mr-2"><i class="fa-solid fa-pen"></i></button>
+            <button onclick="deleteRow(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join('') || `<tr><td colspan="5" class="text-center py-6" style="color:var(--text-muted)">Belum ada data</td></tr>`;
+    }
+
+    function editRow(row) { openModal(row); }
+
+    async function deleteRow(id) {
+      const confirm = await Swal.fire({ title: 'Hapus data ini?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+      if (!confirm.isConfirmed) return;
+      await apiRequest(`/income/${id}`, { method: 'DELETE' });
+      loadIncome();
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('incomeId').value;
+      const body = {
+        transactionDate: document.getElementById('transactionDate').value,
+        amount: Number(document.getElementById('amount').value),
+        category: document.getElementById('category').value,
+        description: document.getElementById('description').value,
+      };
+      try {
+        if (id) await apiRequest(`/income/${id}`, { method: 'PUT', body });
+        else await apiRequest('/income', { method: 'POST', body });
+        closeModal();
+        loadIncome();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+
+    loadIncome();
+  </script>
+</body>
+</html>

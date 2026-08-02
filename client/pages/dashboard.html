@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside id="sidebar" class="hidden md:flex md:flex-col w-64 glass-card m-4 mr-0"></aside>
+    <div class="flex-1 flex flex-col">
+      <header id="topbar" class="glass-card m-4 mb-0"></header>
+
+      <main class="p-4 md:p-6 flex-1">
+        <h1 class="text-xl font-bold mb-4 fade-in">Dashboard</h1>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="glass-card p-4 fade-in">
+            <p class="text-xs" style="color:var(--text-muted)">Total Saldo</p>
+            <p id="statBalance" class="text-lg font-bold mt-1">Rp 0</p>
+          </div>
+          <div class="glass-card p-4 fade-in">
+            <p class="text-xs" style="color:var(--text-muted)">Total Pemasukan</p>
+            <p id="statIncome" class="text-lg font-bold mt-1 text-green-600">Rp 0</p>
+          </div>
+          <div class="glass-card p-4 fade-in">
+            <p class="text-xs" style="color:var(--text-muted)">Total Pengeluaran</p>
+            <p id="statExpense" class="text-lg font-bold mt-1 text-red-500">Rp 0</p>
+          </div>
+          <div class="glass-card p-4 fade-in">
+            <p class="text-xs" style="color:var(--text-muted)">Total Tabungan</p>
+            <p id="statSavings" class="text-lg font-bold mt-1">Rp 0</p>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4 mb-6">
+          <div class="glass-card p-4 fade-in">
+            <p class="font-semibold mb-3">Pemasukan vs Pengeluaran per Bulan</p>
+            <canvas id="barChart" height="180"></canvas>
+          </div>
+          <div class="glass-card p-4 fade-in">
+            <p class="font-semibold mb-3">Tren Saldo</p>
+            <canvas id="lineChart" height="180"></canvas>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="glass-card p-4 fade-in">
+            <p class="font-semibold mb-3">Pengeluaran per Kategori</p>
+            <canvas id="pieChart" height="200"></canvas>
+          </div>
+          <div class="glass-card p-4 fade-in">
+            <p class="font-semibold mb-3">Progress Target Aktif</p>
+            <div id="targetProgressList" class="space-y-3"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script src="../public/js/layout.js"></script>
+  <script>
+    renderLayout('dashboard');
+
+    async function loadDashboard() {
+      const summary = await apiRequest('/dashboard/summary');
+      const charts = await apiRequest('/dashboard/charts');
+
+      document.getElementById('statBalance').textContent = formatRupiah(summary.data.balance);
+      document.getElementById('statIncome').textContent = formatRupiah(summary.data.totalIncome);
+      document.getElementById('statExpense').textContent = formatRupiah(summary.data.totalExpense);
+      document.getElementById('statSavings').textContent = formatRupiah(summary.data.totalSavings);
+
+      const list = document.getElementById('targetProgressList');
+      list.innerHTML = summary.data.targetsProgress.map(t => `
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span>${t.name}</span><span>${t.progress_percent}%</span>
+          </div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${t.progress_percent}%"></div></div>
+        </div>
+      `).join('') || '<p class="text-sm" style="color:var(--text-muted)">Belum ada target aktif</p>';
+
+      new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: {
+          labels: charts.data.months,
+          datasets: [
+            { label: 'Pemasukan', data: charts.data.income, backgroundColor: '#22C55E' },
+            { label: 'Pengeluaran', data: charts.data.expense, backgroundColor: '#FCA5A5' },
+          ],
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+      });
+
+      new Chart(document.getElementById('lineChart'), {
+        type: 'line',
+        data: {
+          labels: charts.data.months,
+          datasets: [{ label: 'Saldo', data: charts.data.balance, borderColor: '#16A34A', tension: 0.4, fill: true, backgroundColor: 'rgba(34,197,94,0.15)' }],
+        },
+        options: { responsive: true },
+      });
+
+      new Chart(document.getElementById('pieChart'), {
+        type: 'pie',
+        data: {
+          labels: charts.data.expenseByCategory.map(c => c.category),
+          datasets: [{ data: charts.data.expenseByCategory.map(c => c.total),
+            backgroundColor: ['#22C55E','#4ADE80','#86EFAC','#FCA5A5','#FCD34D','#93C5FD','#C4B5FD','#FDBA74'] }],
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+      });
+    }
+
+    loadDashboard().catch(err => console.error(err));
+  </script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen px-4">
+  <div class="glass-card w-full max-w-md p-8 fade-in">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center" style="background:linear-gradient(135deg,#22C55E,#16A34A)">
+        <i class="fa-solid fa-piggy-bank text-white text-2xl"></i>
+      </div>
+      <h1 class="text-2xl font-bold mt-3">MySavings</h1>
+      <p class="text-sm" style="color:var(--text-muted)">Masuk untuk mengelola tabunganmu</p>
+    </div>
+
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="text-sm font-medium">Email atau Username</label>
+        <input type="text" id="emailOrUsername" class="input-field mt-1" required />
+      </div>
+      <div>
+        <label class="text-sm font-medium">Password</label>
+        <input type="password" id="password" class="input-field mt-1" required />
+      </div>
+      <div class="flex items-center justify-between text-sm">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" id="rememberMe" /> Ingat saya
+        </label>
+        <a href="forgot-password.html" class="text-green-600 font-medium">Lupa password?</a>
+      </div>
+      <button type="submit" class="btn-primary w-full">Masuk</button>
+    </form>
+
+    <p class="text-center text-sm mt-6" style="color:var(--text-muted)">
+      Belum punya akun? <a href="register.html" class="text-green-600 font-semibold">Daftar</a>
+    </p>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const emailOrUsername = document.getElementById('emailOrUsername').value.trim();
+      const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+
+      try {
+        const res = await apiRequest('/auth/login', { method: 'POST', body: { emailOrUsername, password, rememberMe } });
+        Auth.setToken(res.data.accessToken);
+        Auth.setUser(res.data.user);
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Login gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+  </script>
+</body>
+</html>

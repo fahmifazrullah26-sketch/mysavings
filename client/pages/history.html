@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Riwayat Transaksi — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside id="sidebar" class="hidden md:flex md:flex-col w-64 glass-card m-4 mr-0"></aside>
+    <div class="flex-1 flex flex-col">
+      <header id="topbar" class="glass-card m-4 mb-0"></header>
+      <main class="p-4 md:p-6 flex-1">
+        <h1 class="text-xl font-bold mb-4">Riwayat Transaksi</h1>
+
+        <div class="glass-card p-4 mb-4 grid md:grid-cols-6 gap-3">
+          <input type="text" id="search" class="input-field md:col-span-2" placeholder="Cari keterangan..." />
+          <select id="filterType" class="input-field">
+            <option value="">Semua Jenis</option>
+            <option value="income">Pemasukan</option>
+            <option value="expense">Pengeluaran</option>
+          </select>
+          <input type="date" id="filterStart" class="input-field" />
+          <input type="date" id="filterEnd" class="input-field" />
+          <button id="applyFilter" class="btn-primary">Filter</button>
+        </div>
+
+        <div class="flex gap-2 mb-4">
+          <button onclick="exportData('csv')" class="text-sm px-3 py-2 rounded-xl border"><i class="fa-solid fa-file-csv mr-1"></i> CSV</button>
+          <button onclick="exportData('excel')" class="text-sm px-3 py-2 rounded-xl border"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+          <button onclick="exportData('pdf')" class="text-sm px-3 py-2 rounded-xl border"><i class="fa-solid fa-file-pdf mr-1"></i> PDF</button>
+        </div>
+
+        <div class="glass-card p-4 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left" style="color:var(--text-muted)">
+                <th class="py-2">Tanggal</th><th>Jenis</th><th>Kategori</th><th>Keterangan</th><th class="text-right">Nominal</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script src="../public/js/layout.js"></script>
+  <script>
+    renderLayout('history');
+
+    function buildQuery() {
+      const params = new URLSearchParams();
+      const search = document.getElementById('search').value.trim();
+      const type = document.getElementById('filterType').value;
+      const start = document.getElementById('filterStart').value;
+      const end = document.getElementById('filterEnd').value;
+      if (search) params.set('search', search);
+      if (type) params.set('type', type);
+      if (start) params.set('startDate', start);
+      if (end) params.set('endDate', end);
+      return params.toString();
+    }
+
+    async function loadHistory() {
+      const res = await apiRequest(`/transactions?${buildQuery()}`);
+      document.getElementById('historyBody').innerHTML = res.data.map(row => `
+        <tr class="border-t" style="border-color:var(--border-glass)">
+          <td class="py-2">${new Date(row.transaction_date).toLocaleDateString('id-ID')}</td>
+          <td><span class="text-xs px-2 py-1 rounded-full ${row.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${row.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}</span></td>
+          <td>${row.category}</td>
+          <td>${row.description || '-'}</td>
+          <td class="text-right font-medium ${row.type === 'income' ? 'text-green-600' : 'text-red-500'}">${row.type === 'income' ? '+' : '-'} ${formatRupiah(row.amount)}</td>
+        </tr>
+      `).join('') || `<tr><td colspan="5" class="text-center py-6" style="color:var(--text-muted)">Tidak ada transaksi</td></tr>`;
+    }
+
+    function exportData(format) {
+      const token = Auth.getToken();
+      const url = `${window.MYSAVINGS_API_BASE || 'http://localhost:5000/api'}/transactions/export?format=${format}`;
+      // Karena butuh header Authorization, fetch lalu unduh sebagai blob
+      fetch(url, { headers: { Authorization: `Bearer ${token}` }, credentials: 'include' })
+        .then(res => res.blob())
+        .then(blob => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `mysavings-transactions.${format === 'pdf' ? 'pdf' : 'csv'}`;
+          link.click();
+        });
+    }
+
+    document.getElementById('applyFilter').onclick = loadHistory;
+    loadHistory();
+  </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Panel — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside id="sidebar" class="hidden md:flex md:flex-col w-64 glass-card m-4 mr-0"></aside>
+    <div class="flex-1 flex flex-col">
+      <header id="topbar" class="glass-card m-4 mb-0"></header>
+      <main class="p-4 md:p-6 flex-1">
+        <h1 class="text-xl font-bold mb-4">Admin Panel</h1>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="glass-card p-4"><p class="text-xs" style="color:var(--text-muted)">Total Pengguna</p><p id="statUsers" class="text-lg font-bold">0</p></div>
+          <div class="glass-card p-4"><p class="text-xs" style="color:var(--text-muted)">Pengguna Aktif</p><p id="statActive" class="text-lg font-bold">0</p></div>
+          <div class="glass-card p-4"><p class="text-xs" style="color:var(--text-muted)">Total Transaksi</p><p id="statTx" class="text-lg font-bold">0</p></div>
+          <div class="glass-card p-4"><p class="text-xs" style="color:var(--text-muted)">Target Tercapai</p><p id="statTargets" class="text-lg font-bold">0</p></div>
+        </div>
+
+        <div class="glass-card p-4 mb-6">
+          <p class="font-semibold mb-3">Pertumbuhan Pengguna</p>
+          <canvas id="growthChart" height="100"></canvas>
+        </div>
+
+        <div class="glass-card p-4 overflow-x-auto">
+          <p class="font-semibold mb-3">Daftar Pengguna</p>
+          <table class="w-full text-sm">
+            <thead><tr class="text-left" style="color:var(--text-muted)">
+              <th class="py-2">Nama</th><th>Username</th><th>Email</th><th>Status</th><th class="text-right">Aksi</th>
+            </tr></thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script src="../public/js/layout.js"></script>
+  <script>
+    renderLayout('admin');
+    if (Auth.getUser()?.role !== 'admin') window.location.href = 'dashboard.html';
+
+    async function loadAdmin() {
+      const stats = await apiRequest('/admin/stats');
+      document.getElementById('statUsers').textContent = stats.data.totalUsers;
+      document.getElementById('statActive').textContent = stats.data.activeUsers;
+      document.getElementById('statTx').textContent = stats.data.totalTransactions;
+      document.getElementById('statTargets').textContent = stats.data.targetsCompleted;
+
+      const growth = [...stats.data.growth].reverse();
+      new Chart(document.getElementById('growthChart'), {
+        type: 'bar',
+        data: { labels: growth.map(g => g.month), datasets: [{ label: 'Pengguna Baru', data: growth.map(g => g.newUsers), backgroundColor: '#22C55E' }] },
+        options: { responsive: true },
+      });
+
+      const users = await apiRequest('/admin/users');
+      document.getElementById('userTableBody').innerHTML = users.data.map(u => `
+        <tr class="border-t" style="border-color:var(--border-glass)">
+          <td class="py-2">${u.full_name}</td><td>${u.username}</td><td>${u.email}</td>
+          <td><span class="text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${u.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
+          <td class="text-right">
+            ${u.is_active
+              ? `<button onclick="toggleUser(${u.id}, false)" class="text-xs px-2 py-1 rounded border mr-1">Nonaktifkan</button>`
+              : `<button onclick="toggleUser(${u.id}, true)" class="text-xs px-2 py-1 rounded border mr-1">Aktifkan</button>`}
+            <button onclick="removeUser(${u.id})" class="text-xs px-2 py-1 rounded border text-red-500">Hapus</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function toggleUser(id, activate) {
+      await apiRequest(`/admin/users/${id}/${activate ? 'activate' : 'deactivate'}`, { method: 'PATCH' });
+      loadAdmin();
+    }
+    async function removeUser(id) {
+      const confirm = await Swal.fire({ title: 'Hapus akun ini?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+      if (!confirm.isConfirmed) return;
+      await apiRequest(`/admin/users/${id}`, { method: 'DELETE' });
+      loadAdmin();
+    }
+
+    loadAdmin();
+  </script>
+</body>
+</html>

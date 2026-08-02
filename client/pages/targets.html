@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Target Tabungan — MySavings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../public/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+  <div class="flex min-h-screen">
+    <aside id="sidebar" class="hidden md:flex md:flex-col w-64 glass-card m-4 mr-0"></aside>
+    <div class="flex-1 flex flex-col">
+      <header id="topbar" class="glass-card m-4 mb-0"></header>
+      <main class="p-4 md:p-6 flex-1">
+        <div class="flex items-center justify-between mb-4">
+          <h1 class="text-xl font-bold">Target Tabungan</h1>
+          <button id="openAddModal" class="btn-primary"><i class="fa-solid fa-plus mr-1"></i> Target Baru</button>
+        </div>
+        <div id="targetGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal Tambah/Edit Target -->
+  <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center px-4">
+    <div class="glass-card p-6 w-full max-w-md">
+      <h2 id="modalTitle" class="font-bold text-lg mb-4">Target Baru</h2>
+      <form id="targetForm" class="space-y-3">
+        <input type="hidden" id="targetId" />
+        <div><label class="text-sm font-medium">Nama Target</label>
+          <input type="text" id="name" class="input-field mt-1" required /></div>
+        <div><label class="text-sm font-medium">Target Nominal</label>
+          <input type="number" id="targetAmount" min="1" class="input-field mt-1" required /></div>
+        <div><label class="text-sm font-medium">Deadline</label>
+          <input type="date" id="deadline" class="input-field mt-1" /></div>
+        <div><label class="text-sm font-medium">Kategori</label>
+          <input type="text" id="category" class="input-field mt-1" placeholder="mis. Liburan, Elektronik" /></div>
+        <div><label class="text-sm font-medium">Deskripsi</label>
+          <textarea id="description" class="input-field mt-1" rows="2"></textarea></div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="cancelModal" class="w-1/2 py-2 rounded-xl border">Batal</button>
+          <button type="submit" class="btn-primary w-1/2">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Kontribusi -->
+  <div id="contribModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center px-4">
+    <div class="glass-card p-6 w-full max-w-sm">
+      <h2 class="font-bold text-lg mb-4">Tambah Tabungan</h2>
+      <form id="contribForm" class="space-y-3">
+        <input type="hidden" id="contribTargetId" />
+        <input type="number" id="contribAmount" min="1" class="input-field" placeholder="Nominal" required />
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="cancelContrib" class="w-1/2 py-2 rounded-xl border">Batal</button>
+          <button type="submit" class="btn-primary w-1/2">Tabung</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../public/js/config.js"></script>
+  <script src="../public/js/api.js"></script>
+  <script src="../public/js/layout.js"></script>
+  <script>
+    renderLayout('targets');
+    const modal = document.getElementById('modal');
+    const form = document.getElementById('targetForm');
+    const contribModal = document.getElementById('contribModal');
+
+    function openModal(edit = null) {
+      form.reset();
+      document.getElementById('targetId').value = edit?.id || '';
+      document.getElementById('modalTitle').textContent = edit ? 'Edit Target' : 'Target Baru';
+      if (edit) {
+        document.getElementById('name').value = edit.name;
+        document.getElementById('targetAmount').value = edit.target_amount;
+        document.getElementById('deadline').value = edit.deadline ? edit.deadline.slice(0,10) : '';
+        document.getElementById('category').value = edit.category || '';
+        document.getElementById('description').value = edit.description || '';
+      }
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    document.getElementById('openAddModal').onclick = () => openModal();
+    document.getElementById('cancelModal').onclick = closeModal;
+
+    function openContrib(id) {
+      document.getElementById('contribTargetId').value = id;
+      contribModal.classList.remove('hidden'); contribModal.classList.add('flex');
+    }
+    document.getElementById('cancelContrib').onclick = () => { contribModal.classList.add('hidden'); contribModal.classList.remove('flex'); };
+
+    async function loadTargets() {
+      const res = await apiRequest('/targets');
+      const grid = document.getElementById('targetGrid');
+      grid.innerHTML = res.data.map(t => `
+        <div class="glass-card p-4 fade-in">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="font-semibold">${t.name}</p>
+              <p class="text-xs" style="color:var(--text-muted)">${t.category || 'Umum'} ${t.deadline ? '• ' + new Date(t.deadline).toLocaleDateString('id-ID') : ''}</p>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full ${t.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${t.status === 'completed' ? 'Tercapai' : 'Aktif'}</span>
+          </div>
+          <div class="mt-3">
+            <div class="flex justify-between text-sm mb-1"><span>${formatRupiah(t.current_amount)}</span><span>${formatRupiah(t.target_amount)}</span></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(t.progress_percent,100)}%"></div></div>
+            <p class="text-xs text-right mt-1" style="color:var(--text-muted)">${t.progress_percent}%</p>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button onclick="openContrib(${t.id})" class="btn-primary text-xs flex-1">Tabung</button>
+            <button onclick='editTarget(${JSON.stringify(t)})' class="text-xs px-3 rounded-xl border">Edit</button>
+            <button onclick="deleteTarget(${t.id})" class="text-xs px-3 rounded-xl border text-red-500">Hapus</button>
+          </div>
+        </div>
+      `).join('') || `<p style="color:var(--text-muted)">Belum ada target. Buat target pertamamu!</p>`;
+    }
+
+    function editTarget(t) { openModal(t); }
+
+    async function deleteTarget(id) {
+      const confirm = await Swal.fire({ title: 'Hapus target ini?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+      if (!confirm.isConfirmed) return;
+      await apiRequest(`/targets/${id}`, { method: 'DELETE' });
+      loadTargets();
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('targetId').value;
+      const body = {
+        name: document.getElementById('name').value,
+        targetAmount: Number(document.getElementById('targetAmount').value),
+        deadline: document.getElementById('deadline').value || null,
+        category: document.getElementById('category').value,
+        description: document.getElementById('description').value,
+      };
+      try {
+        if (id) await apiRequest(`/targets/${id}`, { method: 'PUT', body });
+        else await apiRequest('/targets', { method: 'POST', body });
+        closeModal(); loadTargets();
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+
+    document.getElementById('contribForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('contribTargetId').value;
+      const amount = Number(document.getElementById('contribAmount').value);
+      try {
+        const res = await apiRequest(`/targets/${id}/contribute`, { method: 'POST', body: { amount } });
+        contribModal.classList.add('hidden'); contribModal.classList.remove('flex');
+        document.getElementById('contribForm').reset();
+        loadTargets();
+        if (res.data.justCompleted) {
+          confetti({ particleCount: 180, spread: 100, origin: { y: 0.6 } });
+          Swal.fire({ icon: 'success', title: '🎉 Target Tercapai!', text: 'Selamat, kamu berhasil mencapai target tabunganmu!', confirmButtonColor: '#22C55E' });
+        }
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
+      }
+    });
+
+    loadTargets();
+  </script>
+</body>
+</html>
