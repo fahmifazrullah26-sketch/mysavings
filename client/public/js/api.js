@@ -27,7 +27,7 @@ const Auth = {
 };
 
 async function apiRequest(path, { method = 'GET', body, isForm = false } = {}) {
-  const headers = {};
+  const headers = { 'ngrok-skip-browser-warning': 'true' };
   if (!isForm) headers['Content-Type'] = 'application/json';
   const token = Auth.getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
