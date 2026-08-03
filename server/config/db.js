@@ -14,6 +14,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   decimalNumbers: true, // agar kolom DECIMAL dikembalikan sebagai number, bukan string
+  ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {}),
 });
 
 // Uji koneksi sekali saat startup agar error konfigurasi langsung terlihat
