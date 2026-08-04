@@ -78,7 +78,17 @@
       if (photoFile) formData.append('photo', photoFile);
       try {
         await apiRequest('/profile', { method: 'PUT', body: formData, isForm: true });
-        Swal.fire({ icon: 'success', title: 'Profil diperbarui', confirmButtonColor: '#22C55E' });
+        const meRes = await apiRequest('/auth/me');
+        Auth.setUser({
+          id: meRes.data.id,
+          fullName: meRes.data.full_name,
+          username: meRes.data.username,
+          email: meRes.data.email,
+          role: meRes.data.role,
+          photoUrl: meRes.data.photo_url,
+        });
+        await Swal.fire({ icon: 'success', title: 'Profil diperbarui', confirmButtonColor: '#22C55E' });
+        window.location.reload();
       } catch (err) {
         Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#22C55E' });
       }
