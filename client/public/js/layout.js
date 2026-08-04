@@ -37,6 +37,11 @@ function renderLayout(activePage) {
     </div>
   `;
 
+  const avatarFallback = 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(user.fullName || 'U');
+  const avatarUrl = user.photoUrl
+    ? (window.MYSAVINGS_API_BASE || '').replace('/api', '') + user.photoUrl
+    : avatarFallback;
+
   const topbarHtml = `
     <div class="flex items-center justify-between px-6 py-4">
       <div>
@@ -47,7 +52,7 @@ function renderLayout(activePage) {
         <button id="darkModeToggle" class="w-10 h-10 rounded-full glass-card flex items-center justify-center">
           <i class="fa-solid fa-moon"></i>
         </button>
-        <img src="${user.photoUrl ? (window.MYSAVINGS_API_BASE || '').replace('/api','') + user.photoUrl : 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(user.fullName || 'U')}"
+        <img id="topbarAvatar" src="${avatarFallback}"
           class="w-10 h-10 rounded-full object-cover border" />
       </div>
     </div>
@@ -55,6 +60,15 @@ function renderLayout(activePage) {
 
   document.getElementById('sidebar').innerHTML = sidebarHtml;
   document.getElementById('topbar').innerHTML = topbarHtml;
+
+  if (user.photoUrl) {
+    fetch(avatarUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+      .then((res) => (res.ok ? res.blob() : Promise.reject()))
+      .then((blob) => {
+        document.getElementById('topbarAvatar').src = URL.createObjectURL(blob);
+      })
+      .catch(() => {});
+  }
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await apiRequest('/auth/logout', { method: 'POST' }).catch(() => {});
